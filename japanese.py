@@ -1,3 +1,10 @@
+# Original by UncleEngineer
+# Patched by CCSleep
+# Patches
+# 1. Fix Reading bug when clicked Read on the other TAB
+# 2. Eliminate all CSV and Google Sheets and replace with SQLite3
+# 3. Display after clicking translate
+
 from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import Notebook
@@ -5,6 +12,7 @@ from tkinter import messagebox
 import random
 from googletrans import Translator
 import os
+import sqlite3
 
 
 ###############
@@ -14,7 +22,6 @@ configfile = open("installation.txt","w")
 L = ["pip install gtts \n",
 	"pip install playsound \n",
 	"pip install googletrans\n",
-	"pip install gspread \n",
 	"pip install oauth2client \n",
 	"https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio \n",
 	"flashcard.ico \n",
@@ -23,88 +30,44 @@ L = ["pip install gtts \n",
 	"translate.png \n",] 
 configfile.writelines(L)
 '''
-
-
-
-deletemp3 = True 
-allfolder = os.listdir()
-################
-# Config
-
-import csv
-datasettings = [['https://docs.google.com/spreadsheets/d/18w6DB9Lz_gZT0Cs_LSj1xqiy5435463fNxWmOpgPlLE'],['Japanese','Thai']]
-
-def writedata(data):
-	with open('config.csv','w',newline='',encoding='utf-8') as f:
-		fw = csv.writer(f)
-		fw.writerows(data)
-
-def writevocab():
-	data = [['こんにちは','สวัสดีตอนกลางวัน'],
-				['こんばんは','สวัสดีตอนบ่าย']]
-	with open('vocab.csv','w',newline='',encoding='utf-8') as f:
-		fw = csv.writer(f)
-		fw.writerows(data)
-
-#allfolder = ['config.csv']
-if 'config.csv' not in allfolder:
-	writedata(datasettings)
-#writedata(datasettings)
-
-
-if 'vocab.csv' not in allfolder:
-	writevocab()
-
-
-def readconfig():
-	with open('config.csv',newline='',encoding='utf-8') as f:
-		fr = csv.reader(f)
-		conf = list(fr)
-		print(conf)
-
-		urlsheet = conf[0][0]
-		column1 = conf[1][0]
-		column2 = conf[1][1]
-	return (urlsheet,column1,column2)
-
-
-def readvocab():
-	with open('vocab.csv',newline='',encoding='utf-8') as f:
-		fr = csv.reader(f)
-		conf = list(fr)
-		print(conf)
-	return conf
-
-
-################
-
-
-
-if deletemp3:
-	for f in allfolder:
-		if f[-3:] == 'mp3':
-			os.remove(f)
-
+conn = sqlite3.connect("trans.db")
+db = conn.cursor()
 
 import random
-randomnum = list(range(65,90)) #gen A-z for ascii
-global playagain
-playagain = True
+randomnum = list(range(65,90)) #gen A-
 
-def generatename():
-	nm = ''
-	for i in range(15):
-		rd = chr(random.choice(randomnum))
-		nm += rd
-	nm += '.mp3'
-	return nm
+# SQLite3
+global allvocab
+try:
+	data = db.execute("SELECT * FROM words")
+	allvocab = [[d[0],d[1]] for d in data]	
+	vocablist.delete(*vocablist.get_children())
+	for vc in allvocab:
+		vocablist.insert('','end',value=vc)
+except:
+	pass
 
-allfilename = []
+def add_vocab(list_data):
+	db.execute("INSERT INTO words (transfrom, transto) VALUES (?,?)",(list_data[0],list_data[1]))
+	conn.commit()
+
+def UpdateVocab():
+	global allvocab
+	v_statusbar.set('Updating Vocab...')
+	try:
+		data = db.execute("SELECT * FROM words")
+		allvocab = [[d[0],d[1]] for d in data]	
+		vocablist.delete(*vocablist.get_children())
+		for vc in allvocab:
+			vocablist.insert('','end',value=vc)
+	except:
+		messagebox.showerror('Error','มีปัญหาการเชื่อมต่อ')
 
 
-#################GOOGLE SHEET##################
+# end of SQLite3
+#################GOOGLE SHEET################## reconfig with sqlite3
 
-
+'''
 sheeturl,columnname1,columnname2 = readconfig()
 
 
@@ -169,7 +132,7 @@ def UpdateVocab():
 	except:
 		messagebox.showerror('Error','มีปัญหาการเชื่อมต่อ')
 
-
+'''
 #################GOOGLE SHEET##################
 
 GUI = Tk()
@@ -187,7 +150,7 @@ GUI.config(menu=menubar)
 
 filemenu = Menu(menubar,tearoff=0)
 # filemenu.add_command(label='Close', command=GUI.quit)
-filemenu.add_command(label='Config Google Sheet',command=ConfigSheet)
+# filemenu.add_command(label='Config Google Sheet',command=ConfigSheet)
 menubar.add_cascade(label='File',menu=filemenu)
 
 vocabmenu = Menu(menubar,tearoff=0)
@@ -205,9 +168,13 @@ def UncleEngineer():
 	url = 'https://www.facebook.com/UncleEngineer'
 	webbrowser.open(url)
 
+def Forker():
+	url = "https://facebook.com/CCSleepOWO"
+	webbrowser.open(url)
+
 helpmenu = Menu(menubar,tearoff=0)
 helpmenu.add_command(label='Contact Us',command=ContactUs)
-helpmenu.add_command(label='Donate',command=ContactUs)
+helpmenu.add_command(label='CCSleep',command=Forker)
 helpmenu.add_command(label='Uncle Engineer',command=UncleEngineer)
 menubar.add_cascade(label='Help',menu=helpmenu)
 
@@ -283,74 +250,51 @@ from playsound import playsound
 
 
 def SpeakNow(event=None):
-	print(allfilename)
-	print(v_vocab.get())
-	global playagain
+	"""Play sound in 'Flashcard' Tab"""
+	try:
+		os.remove("tmp.mp3")
+	except:
+		pass
 	tts = gTTS(text=v_vocab.get(), lang='ja')
-
-	if playagain == True:
-		name = generatename()
-		allfilename.append(name)
-
-		tts.save(name)
-		playagain = False
-
-
-	
-	if len(allfilename) > 1:
-		os.remove(allfilename[0])
-		del allfilename[0]
-	playsound(allfilename[0])
-
-
+	name = "tmp.mp3"
+	tts.save(name)
+	playsound(name)
 
 def SpeakNow2(event=None):
-
-
-	#v_translatenow.get()
-	global playagain
-
+	"""Play sound in 'Translation' Tab"""
+	try:
+		os.remove("tmp.mp3")
+	except:
+		pass
 	if v_radio.get() == 'ja':
 		tts = gTTS(text=v_transvocab.get(), lang='ja')
 	else:
 		tts = gTTS(text=v_texttras.get(), lang='ja')
 	
-	if playagain == True:
-		name = generatename()
-		allfilename.append(name)
-
-		tts.save(name)
-		playagain = False
+	name = "tmp.mp3"
+	tts.save(name)
+	playsound(name)
 
 
 	
-	if len(allfilename) > 1:
-		os.remove(allfilename[0])
-		del allfilename[0]
-	playsound(allfilename[0])
+	
 
 
 
 GUI.bind('<F4>',SpeakNow2)
 
 def SpeakNow3(vocab_sound):
-
-
-	#v_translatenow.get()
-	global playagain
+	"""Play sound in 'Vocabs' Tab"""
+	try:
+	    os.remove("tmp.mp3")
+	except:
+	    pass
 	tts = gTTS(text=vocab_sound, lang='ja')
-
-	if playagain == True:
-		name = generatename()
-		allfilename.append(name)
-
-		tts.save(name)
-		playagain = True
+	name = "tmp.mp3"
+	tts.save(name)
+	playsound(name)
 	
-	if len(allfilename) > 1:
-		os.remove(allfilename[0])
-		del allfilename[0]
-	playsound(allfilename[0])
+	
 ##########################
 
 
@@ -409,8 +353,7 @@ score_label.place(x=50,y=400)
 score = ttk.Label(F1, textvariable=v_score,font=('Angsana New',30,'bold'),foreground='red')
 score.place(x=150,y=400)
 
-if connection == False:
-	messagebox.showerror('Connection Error','ไม่สามารถเชื่อมต่อกับ Google Sheet ได้')
+
 
 
 
@@ -449,7 +392,6 @@ headerwidth = [(100,600),(100,400)]
 for hd,W in zip(header,headerwidth):
 	vocablist.column(hd,minwidth=W[0],width=W[1])
 
-
 for vc in allvocab:
 	vocablist.insert('','end',value=vc)
 
@@ -464,10 +406,7 @@ vocablist.configure(yscrollcommand=scrolling.set)
 
 
 ##############################
-def add_vocab(list_data):
-	data = sheet.get_all_records()
-	count = len(data)
-	sheet.insert_row(list_data,count + 2)
+
 
 Lam = Translator()
 
@@ -488,11 +427,10 @@ def TranslateNow(event=None):
 			else:
 				add_vocab([trans.text,v_texttras.get()])
 
-			v_statusbar.set('Save to Sheet: Done!')
-		except:
-			print('Can not save')
-	global playagain
-	playagain = True
+			v_statusbar.set('Save to Database: Done!')
+			UpdateVocab()
+		except Exception as e:
+			print('Can not save: ',e)
 
 L1 = ttk.Label(F3, text = 'กรุณาใส่คำที่ต้องการแปล',font=('Angsana New',20))
 L1.pack(pady=10)
@@ -513,11 +451,10 @@ RB2.grid(row=0,column=2)
 savetosheet = IntVar()
 savetosheet.set(0)
 
-cbtn = ttk.Checkbutton(F3,text='Save to Google Sheet',variable=savetosheet)
+cbtn = ttk.Checkbutton(F3,text='Save to Database',variable=savetosheet)
 cbtn.pack()
 
-if connection == False:
-	cbtn.config(state='disabled')
+
 
 v_texttras = StringVar() #เก็บสิ่งที่เราพิมพ์ไว้
 E1 = ttk.Entry(F3, textvariable = v_texttras,font=('Angsana New',20),width=50)
