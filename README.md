@@ -5,13 +5,13 @@ Original: (https://github.com/UncleEngineer/flashcard/)
 ## Setup
 **Windows**
 
-    pip install gtts playsound googletrans oauth2client PyAudio
+    pip install gtts playsound googletrans oauth2client PyAudio songline
 
 **Linux**
 
     sudo apt install python3
     sudo apt install python3-pip
-    pip3 install gtts playsound googletrans oauth2client PyAudio
+    pip3 install gtts playsound googletrans oauth2client PyAudio songline
 
 ## Support the Developer
 Facebook: https://facebook.com/CCSleepOwO<br/>
