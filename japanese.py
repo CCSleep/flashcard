@@ -4,6 +4,9 @@
 # 1. Fix Reading bug when clicked Read on the other TAB
 # 2. Eliminate all CSV and Google Sheets and replace with SQLite3
 # 3. Display after clicking translate
+# 4. Add 3 Words for training when you open the program
+# Default Wordlist
+# https://www.reddit.com/r/LearnJapanese/comments/s2iop/heres_a_spreadsheet_of_the_6000_most_common/
 
 from tkinter import *
 from tkinter import ttk
@@ -13,16 +16,17 @@ import random
 from googletrans import Translator
 import os
 import sqlite3
+import songline
 
 
-###############
+############### CONFIG ####################
+LINE_TOKEN = ""
+WORDS_PER_OPEN = 3
+###########################################
 '''
 configfile = open("installation.txt","w")
 
-L = ["pip install gtts \n",
-	"pip install playsound \n",
-	"pip install googletrans\n",
-	"pip install oauth2client \n",
+L = ["  \n",
 	"https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio \n",
 	"flashcard.ico \n",
 	"tab_flashcard.png \n",
@@ -51,6 +55,24 @@ def add_vocab(list_data):
 	db.execute("INSERT INTO words (transfrom, transto) VALUES (?,?)",(list_data[0],list_data[1]))
 	conn.commit()
 
+def learnNewWords():
+	newwords = db.execute(f"SELECT * FROM sample LIMIT {WORDS_PER_OPEN}")
+	newwords = [n for n in newwords]
+	for n in newwords:
+		add_vocab(n)
+		print(n)
+	
+	db.execute(f"DELETE FROM sample WHERE transfrom in (SELECT transfrom from sample LIMIT {WORDS_PER_OPEN})")
+	conn.commit()
+
+	bot = songline.Sendline(LINE_TOKEN)
+	bot.sendtext(f"""มาเรียนรู้คำศัพท์ใหม่กันเถอะ
+		{newwords[0][0]} แปลว่า {newwords[0][1]}
+		{newwords[1][0]} แปลว่า {newwords[1][1]}
+		{newwords[2][0]} แปลว่า {newwords[2][1]}
+		""")
+		
+
 def UpdateVocab():
 	global allvocab
 	v_statusbar.set('Updating Vocab...')
@@ -63,7 +85,7 @@ def UpdateVocab():
 	except:
 		messagebox.showerror('Error','มีปัญหาการเชื่อมต่อ')
 
-
+learnNewWords()
 # end of SQLite3
 #################GOOGLE SHEET################## reconfig with sqlite3
 
@@ -169,7 +191,7 @@ def UncleEngineer():
 	webbrowser.open(url)
 
 def Forker():
-	url = "https://facebook.com/CCSleepOWO"
+	url = "https://facebook.com/CCSleepOwO"
 	webbrowser.open(url)
 
 helpmenu = Menu(menubar,tearoff=0)
@@ -276,11 +298,6 @@ def SpeakNow2(event=None):
 	playsound(name)
 
 
-	
-	
-
-
-
 GUI.bind('<F4>',SpeakNow2)
 
 def SpeakNow3(vocab_sound):
@@ -365,7 +382,6 @@ def SoundTreeview(event=None):
 		print(data)
 		vocabsound = data['values'][0]
 		SpeakNow3(vocabsound)
-		playagain == False
 
 	except:
 		messagebox.showinfo('Please Select Row','กรุณาเลือกคำศัพท์ก่อน')
@@ -516,7 +532,7 @@ v_statusbar = StringVar()
 
 statusbar = Label(F3, textvariable=v_statusbar, bd=1, relief=SUNKEN, anchor='w')
 statusbar.pack(side=BOTTOM, fill=X)
-
+UpdateVocab()
 
 
 GUI.mainloop()
